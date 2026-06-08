@@ -189,12 +189,6 @@ function Files({ p, t }) {
   );
 }
 
-function Status({ p, t }) {
-  return p.hasTarget
-    ? <span className="pill ok"><span className="dot" />{t("hasTarget")}</span>
-    : <span className="pill no"><span className="dot" />{t("noTarget")}</span>;
-}
-
 function Card({ p, t, onAct, selected, onSelect, loading }) {
   return (
     <div className={"card" + (selected ? " sel" : "") + (loading ? " busy" : "")} onClick={() => onSelect(p.id)}>
@@ -210,10 +204,6 @@ function Card({ p, t, onAct, selected, onSelect, loading }) {
         </div>
       </div>
       <Files p={p} t={t} />
-      <div className="cfoot">
-        <Status p={p} t={t} />
-        <span className="icon-dir">{p.tauriDir ? `${p.tauriDir}/icons` : t("iconDir")}</span>
-      </div>
       <div className="actions" onClick={(e) => e.stopPropagation()}>
         <button className="act" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
         <button className="act" disabled={loading || !p.hasTarget} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} />{t("cleanCache")}</button>
@@ -235,7 +225,6 @@ function Row({ p, t, onAct, selected, onSelect, loading }) {
       <div className="rfiles">
         <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
       </div>
-      <Status p={p} t={t} />
       <div className="ractions" onClick={(e) => e.stopPropagation()}>
         <button className="act lbl" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
         <button className="act" disabled={loading || !p.hasTarget} title={t("cleanCache")} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} /></button>
