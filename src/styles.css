@@ -279,7 +279,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .filters .cnt { font-family: var(--mono); font-size: 11px; opacity: 0.6; }
 
 .main { flex: 1; overflow: auto; padding: 24px; }
-.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
 .list { display: flex; flex-direction: column; gap: 12px; }
 
 .card {
@@ -343,10 +343,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
   min-height: 44px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   box-sizing: border-box;
-  flex: 1; /* Allow it to grow in flex containers */
+  flex: none;
 }
 .frow {
   display: flex;
@@ -403,22 +403,25 @@ button:active:not(:disabled) { transform: scale(0.96); }
   color: var(--text);
 }
 .act:hover { background: var(--accent-soft); color: var(--accent-text); }
-
 .row {
   display: grid;
-  grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1fr) auto; /* Adjusted for Files component */
+  grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1fr) auto;
   gap: 24px;
-  align-items: center;
-  padding: 12px 24px;
+  align-items: start;
+  padding: 16px 24px;
   background: var(--panel);
   border: var(--glass-border);
   border-radius: 16px;
   box-shadow: var(--shadow-card);
 }
 .row:hover { background: var(--elevated); transform: scale(1.005); }
-.row .files { background: none; border-radius: 0; padding: 0; min-height: 0; width: 100%; }
-.row .frow { height: auto; min-height: 38px; }
-.row .ractions { display: flex; gap: 8px; justify-content: flex-end; align-self: center; }
+.row .appicon { margin-top: 1px; }
+.row .rmeta { min-width: 0; margin-top: 2px; }
+.row .files { background: none; border-radius: 0; padding: 0; min-height: 0; width: 100%; display: block; align-self: start !important; }
+.row .frow { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; min-height: 0; height: auto; padding: 0; margin: 0; }
+.row .fcount { font-size: 12px; line-height: 1.2; margin: 0; padding-top: 4px; }
+.row .expander { margin: 0; padding: 4px 8px; }
+.row .ractions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 0; }
 .row .act { flex: none; width: 34px; height: 34px; padding: 0; }
 
 .dock {
