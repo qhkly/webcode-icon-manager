@@ -118,10 +118,6 @@ function hashHue(s) {
   return h;
 }
 
-function thumbBg(name, hue) {
-  return `linear-gradient(150deg, oklch(0.7 0.13 ${(hue + hashHue(name)) % 360}), oklch(0.55 0.16 ${(hue + hashHue(name) + 40) % 360}))`;
-}
-
 function markForName(name) {
   return String(name || "??")
     .split(/[-_\s]+/)
@@ -162,7 +158,7 @@ function AppIcon({ p, size = 50 }) {
         width: size,
         height: size,
         fontSize: size * 0.3,
-        background: `linear-gradient(155deg, oklch(0.66 0.17 ${p.hue}), oklch(0.5 0.19 ${(p.hue + 34) % 360}))`,
+        background: `linear-gradient(155deg, oklch(0.58 0.12 45), oklch(0.44 0.1 38))`,
       }}
     >
       <span className="mk">{p.mark}</span>
@@ -174,16 +170,9 @@ function AppIcon({ p, size = 50 }) {
 const KEY_FILES = new Set(["icon.png", "icon.icns", "icon.ico"]);
 function Files({ p, t }) {
   const [open, setOpen] = useState(false);
-  const shown = p.files.slice(0, 6);
   return (
     <div className="files">
       <div className="frow">
-        <div className="thumbs">
-          {shown.map((f) => (
-            <span key={f} className="t" style={{ background: thumbBg(f, p.hue) }} title={f} />
-          ))}
-          {p.files.length > 6 && <span className="more">+{p.files.length - 6}</span>}
-        </div>
         <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
         <button className={"expander" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
           {open ? t("collapse") : t("expand")} <Svg d={I.chev} w={13} sw={1.7} />
@@ -226,7 +215,7 @@ function Card({ p, t, onAct, selected, onSelect, loading }) {
         <span className="icon-dir">{p.tauriDir ? `${p.tauriDir}/icons` : t("iconDir")}</span>
       </div>
       <div className="actions" onClick={(e) => e.stopPropagation()}>
-        <button className="act solid" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
+        <button className="act" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
         <button className="act" disabled={loading || !p.hasTarget} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} />{t("cleanCache")}</button>
         <button className="act" disabled={loading} onClick={() => onAct(p, "build")}><Svg d={I.box} w={14} />{t("build")}</button>
         <button className="act" disabled={loading} onClick={() => onAct(p, "debug")}><Svg d={I.bug} w={14} />{t("debug")}</button>
@@ -244,15 +233,11 @@ function Row({ p, t, onAct, selected, onSelect, loading }) {
         <div className="rdesc" title={p.desc || t("noDescription")}>{p.desc || t("noDescription")}</div>
       </div>
       <div className="rfiles">
-        <div className="thumbs">
-          {p.files.slice(0, 4).map((f) => <span key={f} className="t" style={{ background: thumbBg(f, p.hue) }} />)}
-          {p.files.length > 4 && <span className="more">+{p.files.length - 4}</span>}
-        </div>
         <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
       </div>
       <Status p={p} t={t} />
       <div className="ractions" onClick={(e) => e.stopPropagation()}>
-        <button className="act lbl solid" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
+        <button className="act lbl" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
         <button className="act" disabled={loading || !p.hasTarget} title={t("cleanCache")} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} /></button>
         <button className="act" disabled={loading} title={t("build")} onClick={() => onAct(p, "build")}><Svg d={I.box} w={14} /></button>
         <button className="act" disabled={loading} title={t("debug")} onClick={() => onAct(p, "debug")}><Svg d={I.bug} w={14} /></button>
@@ -262,7 +247,7 @@ function Row({ p, t, onAct, selected, onSelect, loading }) {
 }
 
 function Dock({ log, t, onClear }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const bodyRef = useRef(null);
   useEffect(() => {
     if (open && bodyRef.current) bodyRef.current.scrollTop = 0;
@@ -279,8 +264,12 @@ function Dock({ log, t, onClear }) {
         <h4><span className="live" />{t("activityLog")}</h4>
         <span className="badgec">{log.length} {t("entries")}</span>
         <div className="docktools">
-          <button className="ghost" onClick={onClear}><Svg d={I.trash} w={13} /><span>{t("clear")}</span></button>
-          <button className="ghost" onClick={copyLog}><Svg d={I.copy} w={13} /><span>{t("copy")}</span></button>
+          {open && (
+            <>
+              <button className="ghost" onClick={onClear}><Svg d={I.trash} w={13} /><span>{t("clear")}</span></button>
+              <button className="ghost" onClick={copyLog}><Svg d={I.copy} w={13} /><span>{t("copy")}</span></button>
+            </>
+          )}
           <button className="ghost" onClick={() => setOpen(!open)}>
             <Svg d={open ? I.collapse : I.expand} w={13} /><span>{open ? t("collapse") : t("expand")}</span>
           </button>
@@ -568,8 +557,8 @@ function App() {
           ))}
         </div>
         <div className="tbspacer" />
-        <div className="stat"><span className="dotk" style={{ background: "var(--ok)" }} /><b>{counts.ok}</b> {t("withTarget")}</div>
-        <div className="stat"><span className="dotk" style={{ background: "var(--warn)" }} /><b>{counts.no}</b> {t("missing")}</div>
+        <div className="stat"><span className="dotk" /><b>{counts.ok}</b> {t("withTarget")}</div>
+        <div className="stat"><span className="dotk muted" /><b>{counts.no}</b> {t("missing")}</div>
         <div className="seg">
           <button className={view === "grid" ? "on" : ""} onClick={() => setView("grid")} title={t("viewGrid")}><Svg d={I.grid} w={14} fill /></button>
           <button className={view === "list" ? "on" : ""} onClick={() => setView("list")} title={t("viewList")}><Svg d={I.rows} w={14} fill /></button>
