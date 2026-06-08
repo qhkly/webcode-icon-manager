@@ -609,13 +609,13 @@ fn read_product_name(project_dir: &Path) -> Option<String> {
     json["productName"].as_str().map(|s| s.to_string())
 }
 
-fn find_bundle_artifact(bundle_dir: &Path, product_name: &str) -> PathBuf {
+fn find_bundle_artifact(bundle_dir: &Path, _product_name: &str) -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        if !product_name.is_empty() {
+        if !_product_name.is_empty() {
             let app = bundle_dir
                 .join("macos")
-                .join(format!("{}.app", product_name));
+                .join(format!("{}.app", _product_name));
             if app.exists() {
                 return app;
             }
