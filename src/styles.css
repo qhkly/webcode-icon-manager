@@ -339,14 +339,24 @@ button:active:not(:disabled) { transform: scale(0.96); }
 .files {
   background: var(--inset);
   border-radius: 12px;
-  padding: 12px;
-  min-height: 44px; /* Maintain alignment when collapsed */
+  padding: 0 14px;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  flex: 1; /* Allow it to grow in flex containers */
 }
-.frow { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-.fcount { font-size: 12px; font-weight: 600; }
+.frow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* This pushes items to sides */
+  width: 100%;
+  min-height: 44px;
+  gap: 12px;
+}
+.fcount { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; flex: none; }
 .expander {
   font-size: 11px;
   font-weight: 700;
@@ -354,15 +364,19 @@ button:active:not(:disabled) { transform: scale(0.96); }
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 8px;
   transition: all 0.2s;
+  background: var(--panel);
+  border: var(--glass-border);
+  flex: none; /* Prevent button from shrinking */
+  white-space: nowrap;
 }
-.expander:hover { background: var(--accent-soft); }
+.expander:hover { background: var(--elevated); box-shadow: 0 2px 4px oklch(0 0 0 / 0.05); }
 .expander svg { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); flex: none; }
 .expander.open svg { transform: rotate(180deg); }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0; border-top: 1px dashed var(--border); }
 .chip {
   font-family: var(--mono);
   font-size: 10.5px;
@@ -392,7 +406,7 @@ button:active:not(:disabled) { transform: scale(0.96); }
 
 .row {
   display: grid;
-  grid-template-columns: 42px minmax(200px, 1fr) 140px 160px; /* Strict column alignment */
+  grid-template-columns: 42px minmax(180px, 1.2fr) minmax(180px, 1fr) auto; /* Adjusted for Files component */
   gap: 24px;
   align-items: center;
   padding: 12px 24px;
@@ -401,10 +415,10 @@ button:active:not(:disabled) { transform: scale(0.96); }
   border-radius: 16px;
   box-shadow: var(--shadow-card);
 }
-.row:hover { background: var(--elevated); transform: scale(1.01); }
-.row .rmeta { min-width: 0; }
-.row .rname { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
-.row .ractions { display: flex; gap: 8px; justify-content: flex-end; }
+.row:hover { background: var(--elevated); transform: scale(1.005); }
+.row .files { background: none; border-radius: 0; padding: 0; min-height: 0; width: 100%; }
+.row .frow { height: auto; min-height: 38px; }
+.row .ractions { display: flex; gap: 8px; justify-content: flex-end; align-self: center; }
 .row .act { flex: none; width: 34px; height: 34px; padding: 0; }
 
 .dock {
@@ -433,7 +447,23 @@ button:active:not(:disabled) { transform: scale(0.96); }
 }
 .badgec { font-size: 10px; font-family: var(--mono); background: var(--accent-soft); color: var(--accent-text); padding: 2px 8px; border-radius: 10px; }
 
-.logbody { padding: 0 24px 16px; overflow: auto; max-height: 180px; font-family: var(--mono); font-size: 11.5px; }
+.docktools { margin-left: auto; display: flex; gap: 4px; }
+.ghost {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all 0.2s;
+}
+.ghost:hover { background: var(--accent-soft); color: var(--accent-text); }
+.ghost svg { flex: none; }
+
+.logbody { padding: 0 24px 16px; overflow: auto; max-height: 180px; font-family: var(--mono); font-size: 11.5px; transition: all 0.3s; }
+.logbody.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; opacity: 0; }
 .logline { display: flex; gap: 16px; padding: 4px 0; border-bottom: 1px solid var(--border-soft); }
 .logline .ts { color: var(--faint); flex: none; }
 .logline .sc { color: var(--accent-text); font-weight: 600; flex: none; }

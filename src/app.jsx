@@ -227,9 +227,7 @@ function Row({ p, t, onAct, selected, onSelect, loading }) {
         <div className="rname"><h3 title={p.name}>{p.name}</h3><span className="ver">v{p.versionText}</span></div>
         <div className="rdesc" title={p.desc || t("noDescription")}>{p.desc || t("noDescription")}</div>
       </div>
-      <div className="rfiles">
-        <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
-      </div>
+      <Files p={p} t={t} />
       <div className="ractions" onClick={(e) => e.stopPropagation()}>
         <button className="act" disabled={loading} onClick={() => onAct(p, "replace")} title={t("replaceIcon")}><Svg d={I.swap} w={15} /></button>
         <button className="act" disabled={loading || !p.hasTarget} title={t("cleanCache")} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={15} /></button>
