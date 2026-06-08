@@ -10,15 +10,15 @@ const I = {
   moon: <path d="M14.5 10.2A5.8 5.8 0 0 1 7.8 3.5a5.8 5.8 0 1 0 6.7 6.7z" />,
   grid: <g><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" /><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" /><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" /><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" /></g>,
   rows: <g><rect x="2.5" y="3" width="13" height="3.4" rx="1.2" /><rect x="2.5" y="7.8" width="13" height="3.4" rx="1.2" /><rect x="2.5" y="12.6" width="13" height="2" rx="1" /></g>,
-  chev: <path d="m4.5 6.5 4.5 4 4.5-4" />,
+  chev: <path d="m4.5 7 4.5 4 4.5-4" />,
   swap: <g><path d="M3 6h8l-2-2M15 12H7l2 2" /></g>,
   broom: <g><path d="M11 2 9 7M13 4 8 9M6 14l3-5 2.5 2.5-5 3z" /><path d="M5.5 11 3 14.5" /></g>,
   box: <g><path d="M9 2 3 5v6l6 3 6-3V5z" /><path d="M3 5l6 3 6-3M9 8v6" /></g>,
   bug: <g><rect x="6" y="6" width="6" height="7" rx="3" /><path d="M9 3v3M4 8h2M12 8h2M4 12h2M12 12h2M6 5 4.5 3.5M12 5l1.5-1.5" /></g>,
   copy: <g><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M3.5 10.5V3.8A1.3 1.3 0 0 1 4.8 2.5h6.7" /></g>,
   trash: <g><path d="M3.5 5h9M7 5V3.5h2V5M4.5 5l.6 8.2A1 1 0 0 0 6.1 14h3.8a1 1 0 0 0 1-0.8L11.5 5" /></g>,
-  expand: <path d="m4 11 5-5 5 5" />,
-  collapse: <path d="m4 6 5 5 5-5" />,
+  expand: <path d="m4.5 11 4.5-4 4.5 4" />,
+  collapse: <path d="m4.5 7 4.5 4 4.5-4" />,
   check: <path d="m3.5 8.5 3 3 6-6.5" />,
   globe: <g><circle cx="9" cy="9" r="6.3" /><path d="M2.7 9h12.6M9 2.7c1.8 1.8 1.8 10.8 0 12.6M9 2.7c-1.8 1.8-1.8 10.8 0 12.6" /></g>,
 };
@@ -142,7 +142,7 @@ function normalizeProject(project) {
   };
 }
 
-function AppIcon({ p, size = 50 }) {
+function AppIcon({ p, size = 64 }) {
   if (p.icon) {
     return (
       <div className="appicon image" style={{ width: size, height: size }}>
@@ -151,18 +151,23 @@ function AppIcon({ p, size = 50 }) {
     );
   }
 
+  // Generate a vibrant gradient based on the hue
+  const h1 = p.hue;
+  const h2 = (p.hue + 40) % 360;
+  const h3 = (p.hue + 80) % 360;
+  const bg = `linear-gradient(135deg, oklch(0.65 0.2 ${h1}), oklch(0.55 0.2 ${h2}), oklch(0.45 0.2 ${h3}))`;
+
   return (
     <div
       className="appicon"
       style={{
         width: size,
         height: size,
-        fontSize: size * 0.3,
-        background: `linear-gradient(155deg, oklch(0.58 0.12 45), oklch(0.44 0.1 38))`,
+        fontSize: size * 0.35,
+        background: bg,
       }}
     >
       <span className="mk">{p.mark}</span>
-      <span className="corner" />
     </div>
   );
 }
@@ -217,7 +222,7 @@ function Card({ p, t, onAct, selected, onSelect, loading }) {
 function Row({ p, t, onAct, selected, onSelect, loading }) {
   return (
     <div className={"row" + (selected ? " sel" : "") + (loading ? " busy" : "")} onClick={() => onSelect(p.id)}>
-      <AppIcon p={p} size={38} />
+      <AppIcon p={p} size={42} />
       <div className="rmeta">
         <div className="rname"><h3 title={p.name}>{p.name}</h3><span className="ver">v{p.versionText}</span></div>
         <div className="rdesc" title={p.desc || t("noDescription")}>{p.desc || t("noDescription")}</div>
@@ -226,10 +231,10 @@ function Row({ p, t, onAct, selected, onSelect, loading }) {
         <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
       </div>
       <div className="ractions" onClick={(e) => e.stopPropagation()}>
-        <button className="act lbl" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
-        <button className="act" disabled={loading || !p.hasTarget} title={t("cleanCache")} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} /></button>
-        <button className="act" disabled={loading} title={t("build")} onClick={() => onAct(p, "build")}><Svg d={I.box} w={14} /></button>
-        <button className="act" disabled={loading} title={t("debug")} onClick={() => onAct(p, "debug")}><Svg d={I.bug} w={14} /></button>
+        <button className="act" disabled={loading} onClick={() => onAct(p, "replace")} title={t("replaceIcon")}><Svg d={I.swap} w={15} /></button>
+        <button className="act" disabled={loading || !p.hasTarget} title={t("cleanCache")} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={15} /></button>
+        <button className="act" disabled={loading} title={t("build")} onClick={() => onAct(p, "build")}><Svg d={I.box} w={15} /></button>
+        <button className="act" disabled={loading} title={t("debug")} onClick={() => onAct(p, "debug")}><Svg d={I.bug} w={15} /></button>
       </div>
     </div>
   );
@@ -250,7 +255,7 @@ function Dock({ log, t, onClear }) {
   return (
     <div className="dock">
       <div className="dockhead">
-        <h4><span className="live" />{t("activityLog")}</h4>
+        <h4><span className="live pulse" />{t("activityLog")}</h4>
         <span className="badgec">{log.length} {t("entries")}</span>
         <div className="docktools">
           {open && (
