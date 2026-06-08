@@ -1,337 +1,198 @@
-const { useState, useEffect, useMemo, useRef } = React;
+/* global React, ReactDOM, Bridge */
+const { useState, useMemo, useRef, useEffect, useCallback } = React;
 
-// ── i18n Hook ──
+const I = {
+  folder: <path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h3.1c.4 0 .77.16 1.06.44L9 5.5h4.5A1.5 1.5 0 0 1 15 7v5.5A1.5 1.5 0 0 1 13.5 14h-10A1.5 1.5 0 0 1 2 12.5z" />,
+  search: <g><circle cx="7" cy="7" r="4.4" /><path d="m11 11 3 3" /></g>,
+  scan: <g><path d="M3 6V4.5A1.5 1.5 0 0 1 4.5 3H6M12 3h1.5A1.5 1.5 0 0 1 15 4.5V6M15 12v1.5a1.5 1.5 0 0 1-1.5 1.5H12M6 15H4.5A1.5 1.5 0 0 1 3 13.5V12" /><path d="M3 9h12" /></g>,
+  gear: <g><circle cx="9" cy="9" r="2.3" /><path d="M9 2.2v1.8M9 14v1.8M15.8 9H14M4 9H2.2M13.8 4.2l-1.3 1.3M5.5 12.5l-1.3 1.3M13.8 13.8l-1.3-1.3M5.5 5.5 4.2 4.2" /></g>,
+  sun: <g><circle cx="9" cy="9" r="3" /><path d="M9 1.8v1.6M9 14.6v1.6M16.2 9h-1.6M3.4 9H1.8M14.1 3.9l-1.1 1.1M5 13l-1.1 1.1M14.1 14.1 13 13M5 5 3.9 3.9" /></g>,
+  moon: <path d="M14.5 10.2A5.8 5.8 0 0 1 7.8 3.5a5.8 5.8 0 1 0 6.7 6.7z" />,
+  grid: <g><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" /><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" /><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" /><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" /></g>,
+  rows: <g><rect x="2.5" y="3" width="13" height="3.4" rx="1.2" /><rect x="2.5" y="7.8" width="13" height="3.4" rx="1.2" /><rect x="2.5" y="12.6" width="13" height="2" rx="1" /></g>,
+  chev: <path d="m4.5 6.5 4.5 4 4.5-4" />,
+  swap: <g><path d="M3 6h8l-2-2M15 12H7l2 2" /></g>,
+  broom: <g><path d="M11 2 9 7M13 4 8 9M6 14l3-5 2.5 2.5-5 3z" /><path d="M5.5 11 3 14.5" /></g>,
+  box: <g><path d="M9 2 3 5v6l6 3 6-3V5z" /><path d="M3 5l6 3 6-3M9 8v6" /></g>,
+  bug: <g><rect x="6" y="6" width="6" height="7" rx="3" /><path d="M9 3v3M4 8h2M12 8h2M4 12h2M12 12h2M6 5 4.5 3.5M12 5l1.5-1.5" /></g>,
+  copy: <g><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M3.5 10.5V3.8A1.3 1.3 0 0 1 4.8 2.5h6.7" /></g>,
+  trash: <g><path d="M3.5 5h9M7 5V3.5h2V5M4.5 5l.6 8.2A1 1 0 0 0 6.1 14h3.8a1 1 0 0 0 1-0.8L11.5 5" /></g>,
+  expand: <path d="m4 11 5-5 5 5" />,
+  collapse: <path d="m4 6 5 5 5-5" />,
+  check: <path d="m3.5 8.5 3 3 6-6.5" />,
+  globe: <g><circle cx="9" cy="9" r="6.3" /><path d="M2.7 9h12.6M9 2.7c1.8 1.8 1.8 10.8 0 12.6M9 2.7c-1.8 1.8-1.8 10.8 0 12.6" /></g>,
+};
+
+const Svg = ({ d, w = 17, sw = 1.5, fill }) => (
+  <svg
+    width={w}
+    height={w}
+    viewBox="0 0 18 18"
+    fill={fill ? "currentColor" : "none"}
+    stroke={fill ? "none" : "currentColor"}
+    strokeWidth={sw}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {d}
+  </svg>
+);
+
+const EXTRA = {
+  zh: {
+    search: "搜索项目...",
+    all: "全部",
+    withTarget: "有 target",
+    noTargetFilter: "缺失",
+    projects: "项目",
+    missing: "缺失 target",
+    files: "个图标文件",
+    noMatch: "没有匹配的项目",
+    noProjectsHint: "请扫描工作区或在设置里选择目录",
+    activityLog: "操作日志",
+    entries: "条",
+    hasTarget: "target 存在",
+    noTarget: "无 target",
+    iconDir: "src-tauri/icons",
+    appearance: "外观设置",
+    selectDir: "选择目录",
+    lightTheme: "亮色模式",
+    darkTheme: "暗色模式",
+  },
+  en: {
+    search: "Search projects...",
+    all: "All",
+    withTarget: "Has target",
+    noTargetFilter: "Missing",
+    projects: "projects",
+    missing: "missing target",
+    files: "icon files",
+    noMatch: "No matching projects",
+    noProjectsHint: "Scan the workspace or choose a directory in Settings",
+    activityLog: "Activity log",
+    entries: "entries",
+    hasTarget: "target exists",
+    noTarget: "no target",
+    iconDir: "src-tauri/icons",
+    appearance: "Appearance",
+    selectDir: "Choose",
+    lightTheme: "Light theme",
+    darkTheme: "Dark theme",
+  },
+};
+
 function useI18n() {
   const [lang, setLang] = useState(() => window.i18n.getLang());
 
   useEffect(() => {
     const handler = (e) => setLang(e.detail);
-    window.addEventListener('i18n-change', handler);
-    return () => window.removeEventListener('i18n-change', handler);
+    window.addEventListener("i18n-change", handler);
+    return () => window.removeEventListener("i18n-change", handler);
   }, []);
 
-  const t = React.useCallback((key, ...args) => {
+  const t = useCallback((key, ...args) => {
     let text = window.i18n.t(key);
+    if (text === key) text = EXTRA[lang]?.[key] || key;
     args.forEach((arg, i) => {
       text = text.replace(`{${i}}`, arg);
     });
     return text;
-  }, []);
+  }, [lang]);
 
-  const toggleLang = React.useCallback(() => {
-    const newLang = lang === 'zh' ? 'en' : 'zh';
-    window.i18n.setLang(newLang);
+  const toggleLang = useCallback(() => {
+    window.i18n.setLang(lang === "zh" ? "en" : "zh");
   }, [lang]);
 
   return { lang, t, toggleLang };
 }
 
-// ── Icons (SVG) ──
-const Icons = {
-  scan: (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="7" cy="7" r="4.5" />
-      <path d="M10.5 10.5L14 14" />
-    </svg>
-  ),
-  folder: (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z" />
-    </svg>
-  ),
-  cog: (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="2" />
-      <path d="M8 1.5v1.7M8 12.8v1.7M14.5 8h-1.7M3.2 8H1.5M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2M12.6 12.6l-1.2-1.2M4.6 4.6L3.4 3.4" />
-    </svg>
-  ),
-  sun: (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <circle cx="8" cy="8" r="2.8" />
-      <path d="M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.6 3.6l.85.85M11.55 11.55l.85.85M11.55 3.6l-.85.85M4.45 11.55l-.85.85" />
-    </svg>
-  ),
-  moon: (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13.5 10.2A5.7 5.7 0 0 1 5.8 2.5a6.2 6.2 0 1 0 7.7 7.7z" />
-    </svg>
-  ),
-  refresh: (
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4M12.5 2v2.5H10M3.5 14v-2.5H6" />
-    </svg>
-  ),
-  auto: (
-    <svg viewBox="0 0 16 16" width="14" height="14">
-      <defs>
-        <clipPath id="half-clip">
-          <rect x="0" y="0" width="8" height="16" />
-        </clipPath>
-      </defs>
-      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1" />
-      <circle cx="8" cy="8" r="5" clipPath="url(#half-clip)" fill="currentColor" opacity="0.3" />
-    </svg>
-  ),
-  trash: (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 4h10M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4M5 4l.5 8h5l.5-8" />
-    </svg>
-  ),
-  grid: (
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-      <rect x="1" y="1" width="6" height="6" rx="1" />
-      <rect x="9" y="1" width="6" height="6" rx="1" />
-      <rect x="1" y="9" width="6" height="6" rx="1" />
-      <rect x="9" y="9" width="6" height="6" rx="1" />
-    </svg>
-  ),
-  list: (
-    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-      <rect x="1" y="2" width="14" height="3" rx="0.5" />
-      <rect x="1" y="6.5" width="14" height="3" rx="0.5" />
-      <rect x="1" y="11" width="14" height="3" rx="0.5" />
-    </svg>
-  ),
-};
-
-// ── Tweaks Hook ──
-function useTweaks(defaults) {
-  const storageKey = "icon-manager.tweaks";
-  const [values, setValues] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    return { ...defaults, ...(saved ? JSON.parse(saved) : {}) };
-  });
-
-  const setTweak = (key, value) => {
-    setValues((prev) => {
-      const next = { ...prev, [key]: value };
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      return next;
-    });
-  };
-
-  return [values, setTweak];
-}
-
-// ── Utility Functions ──
 function shortPath(p) {
-  if (!p) return window.i18n.t('dirNotSet');
-  const home = String(p).match(/^\/home\/[^/]+/)?.[0] || String(p).match(/^\/Users\/[^/]+/)?.[0] || "";
+  if (!p) return window.i18n.t("dirNotSet");
+  const home = String(p).match(/^\/home\/[^/]+/)?.[0] || String(p).match(/^\/Users\/[^/]+/)?.[0];
   return home ? "~" + p.slice(home.length) : p;
 }
 
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+function hashHue(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return h;
 }
 
-// ── Theme Toggle ──
-const COLOR_MODE_CYCLE = { system: "dark", dark: "light", light: "system" };
-const COLOR_MODE_META_KEYS = {
-  system: { icon: "auto", titleKey: "themeSystemDesc" },
-  dark: { icon: "moon", titleKey: "themeDarkDesc" },
-  light: { icon: "sun", titleKey: "themeLightDesc" },
-};
+function thumbBg(name, hue) {
+  return `linear-gradient(150deg, oklch(0.7 0.13 ${(hue + hashHue(name)) % 360}), oklch(0.55 0.16 ${(hue + hashHue(name) + 40) % 360}))`;
+}
 
-// ── TopBar Component ──
-function TopBar({ path, scanning, onScan, onSettings, onCycleColorMode, colorMode, t, lang, onToggleLang }) {
-  const meta = COLOR_MODE_META_KEYS[colorMode] || COLOR_MODE_META_KEYS.system;
-  const langMeta = {
-    zh: { label: "EN", title: t('langToggleToEn') },
-    en: { label: "中", title: t('langToggleToZh') },
+function markForName(name) {
+  return String(name || "??")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 3)
+    .toLowerCase() || "ic";
+}
+
+function normalizeProject(project) {
+  const name = project.name || "";
+  return {
+    ...project,
+    id: project.path || name,
+    versionText: String(project.version || "0.0.0").replace(/^v/i, ""),
+    desc: project.description || "",
+    files: project.iconFiles || [],
+    hue: hashHue(project.path || name || "icon-manager"),
+    mark: markForName(name),
   };
-
-  return (
-    <header className="topbar">
-      <div className="tb-left">
-        <div className="logo">🎨</div>
-        <div className="tb-title">
-          <div className="tb-t1">{t('appTitle')}</div>
-          <div className="tb-t2">{t('appSubtitle')}</div>
-        </div>
-        <div className="tb-divider" />
-        <button className="path-pick" onClick={onSettings}>
-          {Icons.folder}
-          <span className="path-txt">{shortPath(path)}</span>
-        </button>
-      </div>
-      <div className="tb-right">
-        <button className="ibtn lang-btn" title={langMeta[lang]?.title} onClick={onToggleLang}>
-          {langMeta[lang]?.label || lang}
-        </button>
-        <button className="ibtn" title={t(meta.titleKey)} onClick={onCycleColorMode}>
-          {meta.icon === "sun" ? Icons.sun : meta.icon === "moon" ? Icons.moon : Icons.auto}
-        </button>
-        <button className="btn btn-ghost" onClick={onSettings}>
-          {Icons.cog}
-          <span>{t('settings')}</span>
-        </button>
-        <button className="btn btn-primary" onClick={onScan} disabled={scanning}>
-          {Icons.scan}
-          <span>{scanning ? t('scanning') : t('scanProjects')}</span>
-        </button>
-      </div>
-    </header>
-  );
 }
 
-// ── ProjectCard Component ──
-function ProjectCard({ project, loading, onReplaceIcon, onCargoClean, onBuild, onDebug, t }) {
+function AppIcon({ p, size = 50 }) {
+  if (p.icon) {
+    return (
+      <div className="appicon image" style={{ width: size, height: size }}>
+        <img src={p.icon} alt="" />
+      </div>
+    );
+  }
+
   return (
-    <div className={`project-card ${loading ? "loading" : ""}`}>
-      <div className="card-header">
-        <img src={project.icon} alt={escapeHtml(project.name)} className="project-icon" />
-        <div className="project-info">
-          <div className="project-name">
-            {escapeHtml(project.name)}
-            <span className="version-badge">{escapeHtml(project.version)}</span>
-          </div>
-          <div className="project-description" title={escapeHtml(project.description)}>
-            {escapeHtml(project.description || t('noDescription'))}
-          </div>
-          <div className="project-path" title={escapeHtml(project.path)}>
-            {escapeHtml(shortPath(project.path))}
-          </div>
-        </div>
-      </div>
-
-      <div className="card-details">
-        <div className="detail-row">
-          <span className="detail-label">{t('iconFilesWithCount', project.iconFiles.length)}</span>
-        </div>
-        <div className="icon-files-list">
-          {project.iconFiles.map((f, i) => (
-            <span key={i} className="icon-file-badge">
-              {escapeHtml(f)}
-            </span>
-          ))}
-        </div>
-        <div className="detail-row" style={{ marginTop: '6px' }}>
-          <span
-            className="target-status-badge"
-            style={{ color: project.hasTarget ? 'var(--accent)' : 'var(--fg-muted, #888)' }}
-          >
-            {project.hasTarget ? '● ' : '○ '}
-            {project.hasTarget ? t('targetExists') : t('targetNotExists')}
-          </span>
-        </div>
-      </div>
-
-      <div className="card-actions">
-        <button
-          className="btn-action"
-          onClick={() => onReplaceIcon(project)}
-          disabled={loading}
-        >
-          🎨 {t('replaceIcon')}
-        </button>
-        <button
-          className="btn-action"
-          onClick={() => onCargoClean(project)}
-          disabled={loading || !project.hasTarget}
-        >
-          🧹 {t('cleanCache')}
-        </button>
-        <button
-          className="btn-action"
-          onClick={() => onBuild(project)}
-          disabled={loading}
-        >
-          📦 {t('build')}
-        </button>
-        <button
-          className="btn-action"
-          onClick={() => onDebug(project)}
-          disabled={loading}
-        >
-          🐛 {t('debug')}
-        </button>
-      </div>
+    <div
+      className="appicon"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.3,
+        background: `linear-gradient(155deg, oklch(0.66 0.17 ${p.hue}), oklch(0.5 0.19 ${(p.hue + 34) % 360}))`,
+      }}
+    >
+      <span className="mk">{p.mark}</span>
+      <span className="corner" />
     </div>
   );
 }
 
-// ── LogPanel Component ──
-function LogPanel({ entries, open, setOpen, onClear, t }) {
-  const last = entries[entries.length - 1] || { level: "info", t: "--:--:--", msg: t('waiting') };
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async (e) => {
-    e.stopPropagation();
-    const text = entries
-      .slice()
-      .reverse()
-      .map((e) => `[${e.t}] ${e.msg}`)
-      .join("\n");
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback for older browsers
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand("copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error(t('copyFail'), err);
-      }
-      document.body.removeChild(textarea);
-    }
-  };
-
+const KEY_FILES = new Set(["icon.png", "icon.icns", "icon.ico"]);
+function Files({ p, t }) {
+  const [open, setOpen] = useState(false);
+  const shown = p.files.slice(0, 6);
   return (
-    <div className={`log ${open ? "log-open" : ""}`}>
-      <div className="log-hd" onClick={() => setOpen(!open)}>
-        <span className="log-title">{t('operationLog')}</span>
-        <span className="log-count">{entries.length} {t('logCount')}</span>
-        <div className="log-recent">
-          {!open && (
-            <span className={`log-last log-${last.level}`}>
-              <span className="log-t">{last.t}</span>
-              <span className="log-m">{last.msg}</span>
-            </span>
-          )}
+    <div className="files">
+      <div className="frow">
+        <div className="thumbs">
+          {shown.map((f) => (
+            <span key={f} className="t" style={{ background: thumbBg(f, p.hue) }} title={f} />
+          ))}
+          {p.files.length > 6 && <span className="more">+{p.files.length - 6}</span>}
         </div>
-        {open && (
-          <>
-            <button
-              className="log-toggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClear();
-              }}
-            >
-              {t('clear')}
-            </button>
-            <button className="log-toggle" onClick={handleCopy}>
-              {copied ? t('copied') : t('copy')}
-            </button>
-          </>
-        )}
-        <button className="log-toggle">{open ? t('collapse') : t('expand')}</button>
+        <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
+        <button className={"expander" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
+          {open ? t("collapse") : t("expand")} <Svg d={I.chev} w={13} sw={1.7} />
+        </button>
       </div>
       {open && (
-        <div className="log-body">
-          {entries.slice().reverse().map((e, i) => (
-            <div key={i} className={`log-row log-${e.level}`}>
-              <span className="log-t">{e.t}</span>
-              <span className="log-dot" />
-              <span className="log-m">{e.msg}</span>
-            </div>
+        <div className="chips">
+          {p.files.map((f) => (
+            <span key={f} className={"chip" + (KEY_FILES.has(f) ? " key" : "")}>{f}</span>
           ))}
         </div>
       )}
@@ -339,23 +200,120 @@ function LogPanel({ entries, open, setOpen, onClear, t }) {
   );
 }
 
-// ── SettingsModal Component ──
+function Status({ p, t }) {
+  return p.hasTarget
+    ? <span className="pill ok"><span className="dot" />{t("hasTarget")}</span>
+    : <span className="pill no"><span className="dot" />{t("noTarget")}</span>;
+}
+
+function Card({ p, t, onAct, selected, onSelect, loading }) {
+  return (
+    <div className={"card" + (selected ? " sel" : "") + (loading ? " busy" : "")} onClick={() => onSelect(p.id)}>
+      <div className="chead">
+        <AppIcon p={p} />
+        <div className="cmeta">
+          <div className="cname">
+            <h3 title={p.name}>{p.name}</h3>
+            <span className="ver">v{p.versionText}</span>
+          </div>
+          <p className={"cdesc" + (p.desc ? "" : " empty")}>{p.desc || t("noDescription")}</p>
+          <p className="cpath" title={p.path}>{shortPath(p.path)}</p>
+        </div>
+      </div>
+      <Files p={p} t={t} />
+      <div className="cfoot">
+        <Status p={p} t={t} />
+        <span className="icon-dir">{p.tauriDir ? `${p.tauriDir}/icons` : t("iconDir")}</span>
+      </div>
+      <div className="actions" onClick={(e) => e.stopPropagation()}>
+        <button className="act solid" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
+        <button className="act" disabled={loading || !p.hasTarget} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} />{t("cleanCache")}</button>
+        <button className="act" disabled={loading} onClick={() => onAct(p, "build")}><Svg d={I.box} w={14} />{t("build")}</button>
+        <button className="act" disabled={loading} onClick={() => onAct(p, "debug")}><Svg d={I.bug} w={14} />{t("debug")}</button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ p, t, onAct, selected, onSelect, loading }) {
+  return (
+    <div className={"row" + (selected ? " sel" : "") + (loading ? " busy" : "")} onClick={() => onSelect(p.id)}>
+      <AppIcon p={p} size={38} />
+      <div className="rmeta">
+        <div className="rname"><h3 title={p.name}>{p.name}</h3><span className="ver">v{p.versionText}</span></div>
+        <div className="rdesc" title={p.desc || t("noDescription")}>{p.desc || t("noDescription")}</div>
+      </div>
+      <div className="rfiles">
+        <div className="thumbs">
+          {p.files.slice(0, 4).map((f) => <span key={f} className="t" style={{ background: thumbBg(f, p.hue) }} />)}
+          {p.files.length > 4 && <span className="more">+{p.files.length - 4}</span>}
+        </div>
+        <span className="fcount"><b>{p.files.length}</b> {t("files")}</span>
+      </div>
+      <Status p={p} t={t} />
+      <div className="ractions" onClick={(e) => e.stopPropagation()}>
+        <button className="act lbl solid" disabled={loading} onClick={() => onAct(p, "replace")}><Svg d={I.swap} w={14} />{t("replaceIcon")}</button>
+        <button className="act" disabled={loading || !p.hasTarget} title={t("cleanCache")} onClick={() => onAct(p, "clean")}><Svg d={I.broom} w={14} /></button>
+        <button className="act" disabled={loading} title={t("build")} onClick={() => onAct(p, "build")}><Svg d={I.box} w={14} /></button>
+        <button className="act" disabled={loading} title={t("debug")} onClick={() => onAct(p, "debug")}><Svg d={I.bug} w={14} /></button>
+      </div>
+    </div>
+  );
+}
+
+function Dock({ log, t, onClear }) {
+  const [open, setOpen] = useState(true);
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    if (open && bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [log, open]);
+
+  const copyLog = async () => {
+    const text = log.map((l) => `${l.t} ${l.scope ? "[" + l.scope + "] " : ""}${l.msg}`).join("\n");
+    if (navigator.clipboard) await navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div className="dock">
+      <div className="dockhead">
+        <h4><span className="live" />{t("activityLog")}</h4>
+        <span className="badgec">{log.length} {t("entries")}</span>
+        <div className="docktools">
+          <button className="ghost" onClick={onClear}><Svg d={I.trash} w={13} /><span>{t("clear")}</span></button>
+          <button className="ghost" onClick={copyLog}><Svg d={I.copy} w={13} /><span>{t("copy")}</span></button>
+          <button className="ghost" onClick={() => setOpen(!open)}>
+            <Svg d={open ? I.collapse : I.expand} w={13} /><span>{open ? t("collapse") : t("expand")}</span>
+          </button>
+        </div>
+      </div>
+      <div className={"logbody scroll" + (open ? "" : " collapsed")} ref={bodyRef}>
+        {log.map((l, i) => (
+          <div className={"logline " + l.level + (l.scope ? "" : " nosc")} key={i}>
+            <span className="ts">{l.t}</span>
+            {l.scope && <span className="sc">[{l.scope}]</span>}
+            <span className="mg" title={l.msg}>{l.msg}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SettingsModal({ open, settings, onClose, onSave, t }) {
   const [draft, setDraft] = useState(settings);
   const [selecting, setSelecting] = useState(false);
+
   useEffect(() => {
     if (open) setDraft(settings);
   }, [open, settings]);
 
-  const handleSelectDirectory = async () => {
+  const selectDirectory = async () => {
     setSelecting(true);
     try {
       const selected = await Bridge.selectDirectory();
-      if (selected) {
-        setDraft({ ...draft, base_dir: selected });
-      }
+      if (selected) setDraft({ ...draft, base_dir: selected });
     } catch (e) {
-      console.error(t('selectDirFailed'), e);
+      console.error(t("selectDirFailed"), e);
     } finally {
       setSelecting(false);
     }
@@ -365,206 +323,100 @@ function SettingsModal({ open, settings, onClose, onSave, t }) {
 
   return (
     <div className="modal" onClick={onClose}>
-      <div className="modal-backdrop" />
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h2>{t('settingsTitle')}</h2>
-        <div className="form-group">
-          <label>{t('workspaceDir')}</label>
-          <div className="input-with-button">
-            <input
-              type="text"
-              value={draft?.base_dir || ""}
-              onChange={(e) => setDraft({ ...draft, base_dir: e.target.value })}
-              placeholder={t('selectDirPlaceholder')}
-            />
-            <button
-              className="btn btn-secondary"
-              onClick={handleSelectDirectory}
-              disabled={selecting}
-            >
-              {selecting ? t('selecting') : t('selectDirBtn')}
-            </button>
-          </div>
+      <div className="modalbox" onClick={(e) => e.stopPropagation()}>
+        <div>
+          <h2>{t("settingsTitle")}</h2>
+          <p>{t("workspaceDir")}</p>
         </div>
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={onClose}>
-            {t('cancel')}
+        <div className="fieldrow">
+          <input
+            value={draft?.base_dir || ""}
+            onChange={(e) => setDraft({ ...draft, base_dir: e.target.value })}
+            placeholder={t("selectDirPlaceholder")}
+          />
+          <button className="btn" onClick={selectDirectory} disabled={selecting}>
+            <Svg d={I.folder} w={14} />{selecting ? t("selecting") : t("selectDir")}
           </button>
-          <button className="btn btn-primary" onClick={() => onSave(draft)}>
-            {t('saveAndRescan')}
-          </button>
+        </div>
+        <div className="modalactions">
+          <button className="btn" onClick={onClose}>{t("cancel")}</button>
+          <button className="btn primary" onClick={() => onSave(draft)}>{t("saveAndRescan")}</button>
         </div>
       </div>
     </div>
   );
 }
-
-// ── TweaksPanel Component ──
-function TweaksPanel({ tweaks, setTweak, t }) {
-  return (
-    <div className="tweaks-panel">
-      <div className="tweaks-hd" onClick={() => setTweak("showTweaks", !tweaks.showTweaks)}>
-        <span>⚙ {t('appearance')}</span>
-        <button className="tweaks-toggle">{tweaks.showTweaks ? t('collapse') : t('expand')}</button>
-      </div>
-      {tweaks.showTweaks && (
-        <div className="tweaks-body">
-          <div className="tweak-section">
-            <label>{t('density')}</label>
-            <div className="tweak-radio">
-              {["compact", "regular", "comfy"].map((v) => (
-                <button
-                  key={v}
-                  className={`tweak-opt ${tweaks.density === v ? "on" : ""}`}
-                  onClick={() => setTweak("density", v)}
-                >
-                  {v === "compact" ? t('densityCompact') : v === "regular" ? t('densityRegular') : t('densityComfy')}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="tweak-section">
-            <label>{t('view')}</label>
-            <div className="tweak-radio">
-              <button
-                className={`tweak-opt ${tweaks.view === "grid" ? "on" : ""}`}
-                onClick={() => setTweak("view", "grid")}
-              >
-                {Icons.grid} {t('viewGrid')}
-              </button>
-              <button
-                className={`tweak-opt ${tweaks.view === "list" ? "on" : ""}`}
-                onClick={() => setTweak("view", "list")}
-              >
-                {Icons.list} {t('viewList')}
-              </button>
-            </div>
-          </div>
-          <div className="tweak-section">
-            <label>{t('accentColor')}</label>
-            <div className="tweak-colors">
-              {["#D97757", "#3B82F6", "#10B981", "#7C3AED", "#0F172A"].map((c) => (
-                <button
-                  key={c}
-                  className={`tweak-color ${tweaks.accent === c ? "on" : ""}`}
-                  style={{ "--color": c }}
-                  onClick={() => setTweak("accent", c)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main App Component ──
-const TWEAK_DEFAULTS = {
-  density: "regular",
-  view: "grid",
-  accent: "#D97757",
-  colorMode: "system",
-  showLog: true,
-  showTweaks: false,
-};
 
 function App() {
-  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const { lang, t, toggleLang } = useI18n();
+  const [theme, setTheme] = useState(() => localStorage.getItem("icon-manager.theme") || "light");
+  const [view, setView] = useState(() => localStorage.getItem("icon-manager.view") || "grid");
+  const [filter, setFilter] = useState("all");
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState(null);
   const [projects, setProjects] = useState([]);
   const [settings, setSettings] = useState({ base_dir: "" });
   const [scanning, setScanning] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [logOpen, setLogOpen] = useState(false);
-  const [logEntries, setLogEntries] = useState([]);
+  const [log, setLog] = useState([]);
   const [loadingPaths, setLoadingPaths] = useState({});
-
   const settingsRef = useRef(settings);
+
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
 
-  // Apply theme
   useEffect(() => {
-    const root = document.documentElement;
-    if (tweaks.colorMode === "dark") {
-      root.dataset.theme = "dark";
-      localStorage.setItem("icon-manager.theme", "dark");
-    } else if (tweaks.colorMode === "light") {
-      root.dataset.theme = "light";
-      localStorage.setItem("icon-manager.theme", "light");
-    } else {
-      delete root.dataset.theme;
-      localStorage.removeItem("icon-manager.theme");
-    }
-  }, [tweaks.colorMode]);
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("icon-manager.theme", theme);
+  }, [theme]);
 
-  // Apply accent color
   useEffect(() => {
-    document.documentElement.style.setProperty("--accent", tweaks.accent);
-  }, [tweaks.accent]);
+    localStorage.setItem("icon-manager.view", view);
+  }, [view]);
 
-  // Push log entry
-  const pushLog = React.useCallback((level, msg) => {
-    const timeStr = new Date().toLocaleTimeString("en-CA", { hour12: false });
-    setLogEntries((prev) => [...prev.slice(-199), { t: timeStr, level, msg }]);
+  const pushLog = useCallback((level, msg, scope = null) => {
+    const time = new Date().toLocaleTimeString("en-CA", { hour12: false });
+    setLog((prev) => [{ t: time, level, msg, scope }, ...prev.slice(0, 199)]);
   }, []);
 
-  // Load settings on mount
+  const doScan = useCallback(async (s = settingsRef.current) => {
+    if (!s.base_dir) {
+      pushLog("warn", t("pleaseSetWorkspaceDir"));
+      setSettingsOpen(true);
+      return;
+    }
+
+    setScanning(true);
+    pushLog("info", t("scanProjectsAt", shortPath(s.base_dir)));
+    try {
+      const list = await Bridge.scanProjects(s.base_dir);
+      const normalized = list.map(normalizeProject);
+      setProjects(normalized);
+      pushLog("ok", t("scanCompleteFound", normalized.length));
+    } catch (e) {
+      pushLog("warn", `${t("scanFailedMsg")}: ${e}`);
+    } finally {
+      setScanning(false);
+    }
+  }, [pushLog, t]);
+
   useEffect(() => {
     Bridge.loadSettings()
       .then((s) => {
         setSettings(s);
         settingsRef.current = s;
-        if (s.base_dir) {
-          doScan(s);
-        }
+        if (s.base_dir) doScan(s);
       })
-      .catch((e) => pushLog("error", `${t('logFailedToLoad')}: ${e}`));
-  }, [pushLog, t]);
+      .catch((e) => pushLog("warn", `${t("logFailedToLoad")}: ${e}`));
+  }, [doScan, pushLog, t]);
 
-  // Scan projects
-  const doScan = async (s = settingsRef.current) => {
-    if (!s.base_dir) {
-      pushLog("warn", t('pleaseSetWorkspaceDir'));
-      return;
-    }
-
-    setScanning(true);
-    pushLog("info", t('scanProjectsAt', shortPath(s.base_dir)));
+  const withLoading = async (project, task) => {
+    setLoadingPaths((prev) => ({ ...prev, [project.path]: true }));
     try {
-      const list = await Bridge.scanProjects(s.base_dir);
-      setProjects(list);
-      pushLog("ok", t('scanCompleteFound', list.length));
+      await task();
     } catch (e) {
-      pushLog("error", `${t('scanFailedMsg')}: ${e}`);
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  // Replace icon
-  const replaceIcon = async (project) => {
-    try {
-      const selected = await Bridge.openFile();
-      if (!selected) {
-        pushLog("info", t('noFileSelected'));
-        return;
-      }
-
-      setLoadingPaths((prev) => ({ ...prev, [project.path]: true }));
-      pushLog("info", `[${project.name}] ${t('replacingIconFor')}...`);
-
-      const result = await Bridge.replaceIcon(project.path, project.tauriDir, selected);
-      if (result.success) {
-        pushLog("ok", `[${project.name}] ${t('iconReplaceOk')}`);
-        await doScan(); // Refresh to show new icon
-      } else {
-        pushLog("error", `[${project.name}] ${t('iconReplaceFailedFor')}: ${result.output}`);
-      }
-    } catch (e) {
-      pushLog("error", `[${project.name}] ${t('iconReplaceFailedFor')}: ${e}`);
+      pushLog("warn", `${t("error")}: ${e}`, project.name);
     } finally {
       setLoadingPaths((prev) => {
         const next = { ...prev };
@@ -574,180 +426,198 @@ function App() {
     }
   };
 
-  // Cargo clean
-  const cargoClean = async (project) => {
-    if (!confirm(t('confirmCleanCache', project.name))) {
+  const replaceIcon = async (project) => {
+    const selectedFile = await Bridge.openFile();
+    if (!selectedFile) {
+      pushLog("info", t("noFileSelected"), project.name);
       return;
     }
 
-    setLoadingPaths((prev) => ({ ...prev, [project.path]: true }));
-    pushLog("info", `[${project.name}] ${t('cleaningCacheFor')}...`);
+    await withLoading(project, async () => {
+      pushLog("info", t("replacingIconFor"), project.name);
+      const result = await Bridge.replaceIcon(project.path, project.tauriDir, selectedFile);
+      if (result.success) {
+        pushLog("ok", t("iconReplaceOk"), project.name);
+        await doScan();
+      } else {
+        pushLog("warn", `${t("iconReplaceFailedFor")}: ${result.output}`, project.name);
+      }
+    });
+  };
 
-    try {
+  const cargoClean = async (project) => {
+    if (!confirm(t("confirmCleanCache", project.name))) return;
+    await withLoading(project, async () => {
+      pushLog("info", t("cleaningCacheFor"), project.name);
       const result = await Bridge.cargoClean(project.path, project.tauriDir);
       if (result.success) {
-        pushLog("ok", `[${project.name}] ${t('cacheCleanOk')}`);
-        setProjects((prev) =>
-          prev.map((p) => p.path === project.path ? { ...p, hasTarget: false } : p)
-        );
+        pushLog("ok", t("cacheCleanOk"), project.name);
+        setProjects((prev) => prev.map((p) => p.path === project.path ? { ...p, hasTarget: false } : p));
       } else {
-        pushLog("error", `[${project.name}] ${t('cleanCacheFailedFor')}: ${result.output}`);
+        pushLog("warn", `${t("cleanCacheFailedFor")}: ${result.output}`, project.name);
       }
-    } catch (e) {
-      pushLog("error", `[${project.name}] ${t('cleanCacheFailedFor')}: ${e}`);
-    } finally {
-      setLoadingPaths((prev) => {
-        const next = { ...prev };
-        delete next[project.path];
-        return next;
-      });
-    }
+    });
   };
 
-  // Build project
   const buildProject = async (project) => {
-    if (!confirm(t('confirmBuild', project.name))) {
-      return;
-    }
-
-    setLoadingPaths((prev) => ({ ...prev, [project.path]: true }));
-    pushLog("info", `[${project.name}] ${t('buildInProgress')}...`);
-
-    const unlisten = Bridge.listenBuildOutput((msg) => pushLog("info", `[${project.name}] ${msg}`));
-
-    try {
-      const result = await Bridge.buildProject(project.path);
-      if (result.success) {
-        pushLog("ok", `[${project.name}] ${t('buildOk')}`);
-      } else {
-        pushLog("error", `[${project.name}] ${t('buildFailedFor')}: ${result.output}`);
+    if (!confirm(t("confirmBuild", project.name))) return;
+    await withLoading(project, async () => {
+      pushLog("info", t("buildInProgress"), project.name);
+      const unlisten = Bridge.listenBuildOutput((msg) => pushLog("info", msg, project.name));
+      try {
+        const result = await Bridge.buildProject(project.path);
+        if (result.success) {
+          pushLog("ok", t("buildOk"), project.name);
+        } else {
+          pushLog("warn", `${t("buildFailedFor")}: ${result.output}`, project.name);
+        }
+      } finally {
+        unlisten();
       }
-    } catch (e) {
-      pushLog("error", `[${project.name}] ${t('buildFailedFor')}: ${e}`);
-    } finally {
-      unlisten();
-      setProjects((prev) =>
-        prev.map((p) => p.path === project.path ? { ...p, hasTarget: true } : p)
-      );
-      setLoadingPaths((prev) => {
-        const next = { ...prev };
-        delete next[project.path];
-        return next;
-      });
-    }
+    });
   };
 
-  // Debug project
   const debugProject = async (project) => {
-    setLoadingPaths((prev) => ({ ...prev, [project.path]: true }));
-    pushLog("info", `[${project.name}] ${t('debugModeStarted')}...`);
-
-    const unlisten = Bridge.listenBuildOutput((msg) => pushLog("info", `[${project.name}] ${msg}`));
-
-    try {
-      const result = await Bridge.debugProject(project.path);
-      if (result.success) {
-        pushLog("ok", `[${project.name}] ${t('debugOk')}`);
-      } else {
-        pushLog("error", `[${project.name}] ${t('debugFailedFor')}: ${result.output}`);
+    await withLoading(project, async () => {
+      pushLog("info", t("debugModeStarted"), project.name);
+      const unlisten = Bridge.listenBuildOutput((msg) => pushLog("info", msg, project.name));
+      try {
+        const result = await Bridge.debugProject(project.path);
+        if (result.success) {
+          pushLog("ok", t("debugOk"), project.name);
+        } else {
+          pushLog("warn", `${t("debugFailedFor")}: ${result.output}`, project.name);
+        }
+      } finally {
+        unlisten();
       }
-    } catch (e) {
-      pushLog("error", `[${project.name}] ${t('debugFailedFor')}: ${e}`);
-    } finally {
-      unlisten();
-      setProjects((prev) =>
-        prev.map((p) => p.path === project.path ? { ...p, hasTarget: true } : p)
-      );
-      setLoadingPaths((prev) => {
-        const next = { ...prev };
-        delete next[project.path];
-        return next;
-      });
-    }
+    });
   };
 
-  // Save settings
+  const onAct = useCallback((project, kind) => {
+    if (kind === "replace") replaceIcon(project);
+    if (kind === "clean") cargoClean(project);
+    if (kind === "build") buildProject(project);
+    if (kind === "debug") debugProject(project);
+  }, [replaceIcon, cargoClean, buildProject, debugProject]);
+
   const saveSettings = async (next) => {
     try {
       await Bridge.saveSettings(next);
       setSettings(next);
       settingsRef.current = next;
       setSettingsOpen(false);
-      pushLog("ok", t('settingsSaved'));
+      pushLog("ok", t("settingsSaved"));
       await doScan(next);
     } catch (e) {
-      pushLog("error", `${t('saveSettingsFailed')}: ${e}`);
+      pushLog("warn", `${t("saveSettingsFailed")}: ${e}`);
     }
   };
 
-  // Cycle color mode
-  const cycleColorMode = () => {
-    setTweak("colorMode", COLOR_MODE_CYCLE[tweaks.colorMode]);
-  };
+  const normalizedProjects = useMemo(() => projects.map(normalizeProject), [projects]);
+  const counts = useMemo(() => ({
+    all: normalizedProjects.length,
+    ok: normalizedProjects.filter((p) => p.hasTarget).length,
+    no: normalizedProjects.filter((p) => !p.hasTarget).length,
+  }), [normalizedProjects]);
+
+  const shown = useMemo(() => normalizedProjects.filter((p) => {
+    if (filter === "ok" && !p.hasTarget) return false;
+    if (filter === "no" && p.hasTarget) return false;
+    const haystack = `${p.name} ${p.desc} ${p.path}`.toLowerCase();
+    return !q || haystack.includes(q.toLowerCase());
+  }), [filter, normalizedProjects, q]);
 
   return (
-    <div className={`app density-${tweaks.density}`}>
-      <TopBar
-        path={settings.base_dir}
-        scanning={scanning}
-        onScan={() => doScan()}
-        onSettings={() => setSettingsOpen(true)}
-        onCycleColorMode={cycleColorMode}
-        colorMode={tweaks.colorMode}
-        t={t}
-        lang={lang}
-        onToggleLang={toggleLang}
-      />
+    <div className="app">
+      <header className="titlebar">
+        <div className="traffic"><i className="r" /><i className="y" /><i className="g" /></div>
+        <div className="brand">
+          <span className="glyph"><Svg d={I.grid} w={18} fill /></span>
+          <div><h1>{t("appTitle")} · Icon Manager</h1><p>{t("appSubtitle")}</p></div>
+        </div>
+        <button className="pathchip" onClick={() => setSettingsOpen(true)} title={settings.base_dir || t("dirNotSet")}>
+          <Svg d={I.folder} w={15} />
+          <span className="mono">{shortPath(settings.base_dir)}</span>
+        </button>
+        <div className="tbspacer" />
+        <div className="tbtools">
+          <button className="iconbtn langbtn" title={lang === "zh" ? t("langToggleToEn") : t("langToggleToZh")} onClick={toggleLang}>
+            {lang === "zh" ? "中" : "EN"}
+          </button>
+          <button className="iconbtn" title={theme === "light" ? t("darkTheme") : t("lightTheme")} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+            <Svg d={theme === "light" ? I.moon : I.sun} w={16} fill={theme === "light"} />
+          </button>
+          <button className="iconbtn" title={t("settings")} onClick={() => setSettingsOpen(true)}><Svg d={I.gear} w={16} /></button>
+          <button className="btn primary" onClick={() => doScan()} disabled={scanning}>
+            <Svg d={I.scan} w={15} />{scanning ? t("scanning") : t("scanProjects")}
+          </button>
+        </div>
+      </header>
 
-      <TweaksPanel tweaks={tweaks} setTweak={setTweak} t={t} />
+      <div className="toolbar">
+        <div className="search">
+          <Svg d={I.search} w={15} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} />
+        </div>
+        <div className="filters">
+          {[["all", t("all"), counts.all], ["ok", t("withTarget"), counts.ok], ["no", t("noTargetFilter"), counts.no]].map(([k, label, count]) => (
+            <button key={k} className={filter === k ? "on" : ""} onClick={() => setFilter(k)}>
+              {label} <span className="cnt">{count}</span>
+            </button>
+          ))}
+        </div>
+        <div className="tbspacer" />
+        <div className="stat"><span className="dotk" style={{ background: "var(--ok)" }} /><b>{counts.ok}</b> {t("withTarget")}</div>
+        <div className="stat"><span className="dotk" style={{ background: "var(--warn)" }} /><b>{counts.no}</b> {t("missing")}</div>
+        <div className="seg">
+          <button className={view === "grid" ? "on" : ""} onClick={() => setView("grid")} title={t("viewGrid")}><Svg d={I.grid} w={14} fill /></button>
+          <button className={view === "list" ? "on" : ""} onClick={() => setView("list")} title={t("viewList")}><Svg d={I.rows} w={14} fill /></button>
+        </div>
+      </div>
 
-      <main className="main">
-        {projects.length === 0 ? (
-          <div className="empty">
-            <div className="empty-ico">{Icons.scan}</div>
-            <div className="empty-t">{scanning ? t('scanningDir') : t('noProjects')}</div>
-            <div className="empty-s">
-              {settings.base_dir ? t('noProjectsHint') : t('noProjectsHintNoDir')}
-            </div>
+      <main className="main scroll">
+        {shown.length === 0 ? (
+          <div className="empty-state">
+            <Svg d={projects.length ? I.search : I.scan} w={48} sw={1} />
+            <p>{projects.length ? t("noMatch") : t("noProjects")}</p>
+            <span>{settings.base_dir ? t("noProjectsHint") : t("noProjectsHintNoDir")}</span>
+          </div>
+        ) : view === "grid" ? (
+          <div className="grid">
+            {shown.map((p) => (
+              <Card
+                key={p.id}
+                p={p}
+                t={t}
+                onAct={onAct}
+                selected={selected === p.id}
+                onSelect={setSelected}
+                loading={!!loadingPaths[p.path]}
+              />
+            ))}
           </div>
         ) : (
-          <div className={`project-grid view-${tweaks.view}`}>
-            {projects.map((p) => (
-              <ProjectCard
-                key={p.path}
-                project={p}
-                loading={!!loadingPaths[p.path]}
-                onReplaceIcon={replaceIcon}
-                onCargoClean={cargoClean}
-                onBuild={buildProject}
-                onDebug={debugProject}
+          <div className="list">
+            {shown.map((p) => (
+              <Row
+                key={p.id}
+                p={p}
                 t={t}
+                onAct={onAct}
+                selected={selected === p.id}
+                onSelect={setSelected}
+                loading={!!loadingPaths[p.path]}
               />
             ))}
           </div>
         )}
       </main>
 
-      {tweaks.showLog && (
-        <LogPanel
-          entries={logEntries}
-          open={logOpen}
-          setOpen={setLogOpen}
-          onClear={() => setLogEntries([])}
-          t={t}
-        />
-      )}
-
-      <SettingsModal
-        open={settingsOpen}
-        settings={settings}
-        onClose={() => setSettingsOpen(false)}
-        onSave={saveSettings}
-        t={t}
-      />
+      <Dock log={log} t={t} onClear={() => setLog([])} />
+      <SettingsModal open={settingsOpen} settings={settings} onClose={() => setSettingsOpen(false)} onSave={saveSettings} t={t} />
     </div>
   );
 }
 
-// ── Mount React App ──
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
