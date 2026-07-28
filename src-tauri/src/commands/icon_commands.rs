@@ -238,25 +238,22 @@ pub async fn icon_replace_icon(
 
     let project_root = Path::new(&project_path);
 
-    // 优先使用项目本地的 CLI；若无则降级到 cargo tauri icon
+    // 优先使用项目本地的 CLI；若无则降级到 npx @tauri-apps/cli
+    // （不用 `cargo tauri icon`：那需要额外安装 cargo-tauri，多数机器上没有）
     // 通过 shell + with_nvm 确保 node 在 PATH 中（Tauri 进程不继承 shell PATH）
     let local_bin = project_root.join("node_modules/.bin/tauri");
-    let shell = user_shell();
-    let output = if local_bin.exists() {
-        let cmd = with_nvm(&format!(
-            "node_modules/.bin/tauri icon '{}'",
-            icon_path.replace('\'', "'\\''")
-        ));
-        Command::new(&shell)
-            .args(["-c", &cmd])
-            .current_dir(project_root)
-            .output()
-            .map_err(|e| format!("执行命令失败: {}", e))?
+    let quoted_icon = icon_path.replace('\'', "'\\''");
+    let raw_cmd = if local_bin.exists() {
+        format!("node_modules/.bin/tauri icon '{}'", quoted_icon)
     } else {
-        // ai-kanban 等使用 cargo tauri，从 src-tauri 目录运行
-        run_cargo(&["tauri", "icon", &icon_path], tauri_path)
-            .map_err(|e| format!("执行命令失败: {}", e))?
+        format!("npx --yes @tauri-apps/cli@latest icon '{}'", quoted_icon)
     };
+    let shell = user_shell();
+    let output = Command::new(&shell)
+        .args(["-lc", &with_nvm(&raw_cmd)])
+        .current_dir(project_root)
+        .output()
+        .map_err(|e| format!("执行命令失败: {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -424,15 +421,21 @@ fn user_shell() -> String {
     std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
 }
 
-// Run `cargo <args>` via shell with $HOME/.cargo/bin in PATH.
+// Run `cargo <args>` via a login shell with the usual toolchain dirs in PATH.
 // Direct Command::new("cargo") fails in installed app bundles because macOS
-// strips PATH to /usr/bin:/bin only — cargo lives in ~/.cargo/bin.
+// strips PATH to /usr/bin:/bin only. rustup puts cargo in ~/.cargo/bin, but
+// Homebrew installs it to /opt/homebrew/bin (or /usr/local/bin on Intel), and
+// ~/.cargo/bin may contain only dangling symlinks after rustup is uninstalled —
+// so cover all three plus `-l` to pick up ~/.zprofile (brew shellenv).
 fn run_cargo(args: &[&str], cwd: &std::path::Path) -> std::io::Result<std::process::Output> {
     let shell = user_shell();
     let cargo_args = args.join(" ");
-    let cmd = format!("export PATH=\"$HOME/.cargo/bin:$PATH\"; cargo {}", cargo_args);
+    let cmd = format!(
+        "export PATH=\"$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; cargo {}",
+        cargo_args
+    );
     Command::new(&shell)
-        .args(["-c", &cmd])
+        .args(["-lc", &cmd])
         .current_dir(cwd)
         .output()
 }
