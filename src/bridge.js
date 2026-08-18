@@ -4,6 +4,7 @@
   // Fallback settings for browser preview mode
   const fallbackSettings = {
     base_dir: "/home/ubuntu/projects/智能体/webcode",
+    full_bleed: true,
   };
 
   // Fallback projects for browser preview mode
@@ -107,8 +108,8 @@
       return projects.map(transformProject);
     },
 
-    replaceIcon: (projectPath, tauriDir, iconPath) =>
-      invoke("icon_replace_icon", { projectPath, tauriDir, iconPath }).then(transformOpResult),
+    replaceIcon: (projectPath, tauriDir, iconPath, fullBleed = true) =>
+      invoke("icon_replace_icon", { projectPath, tauriDir, iconPath, fullBleed }).then(transformOpResult),
 
     cargoClean: (projectPath, tauriDir) =>
       invoke("icon_cargo_clean", { projectPath, tauriDir }).then(transformOpResult),

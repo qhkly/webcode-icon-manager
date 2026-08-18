@@ -1,3 +1,4 @@
+use super::icon_preprocess;
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -27,9 +28,16 @@ pub struct IconOpResult {
     pub output: String,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub base_dir: String,
+    /// 替换图标前是否把源图规整成满幅不透明图（避免 macOS 26 自动套底板时露出一圈背景）
+    #[serde(default = "default_true")]
+    pub full_bleed: bool,
 }
 
 impl Default for Settings {
@@ -37,6 +45,7 @@ impl Default for Settings {
         // Return empty string to prompt user to select directory
         Self {
             base_dir: String::new(),
+            full_bleed: true,
         }
     }
 }
@@ -218,6 +227,7 @@ pub async fn icon_replace_icon(
     project_path: String,
     tauri_dir: String,
     icon_path: String,
+    full_bleed: Option<bool>,
 ) -> Result<IconOpResult, String> {
     let tauri_path = Path::new(&tauri_dir);
     let icon_file = Path::new(&icon_path);
@@ -238,11 +248,29 @@ pub async fn icon_replace_icon(
 
     let project_root = Path::new(&project_path);
 
+    // 满幅预处理：裁掉透明边并铺满画布，避免打包后 macOS 自动套底板时露出一圈背景
+    let mut prep_note = String::new();
+    let mut temp_icon: Option<PathBuf> = None;
+    let mut effective_icon = icon_path.clone();
+    if full_bleed.unwrap_or(true) {
+        match icon_preprocess::prepare_full_bleed(icon_file) {
+            Ok(prep) => {
+                prep_note = prep.note;
+                effective_icon = prep.path.to_string_lossy().to_string();
+                if prep.is_temp {
+                    temp_icon = Some(prep.path);
+                }
+            }
+            // 预处理失败不阻断替换，回退用原图
+            Err(e) => prep_note = format!("满幅预处理跳过（{}），使用原图", e),
+        }
+    }
+
     // 优先使用项目本地的 CLI；若无则降级到 npx @tauri-apps/cli
     // （不用 `cargo tauri icon`：那需要额外安装 cargo-tauri，多数机器上没有）
     // 通过 shell + with_nvm 确保 node 在 PATH 中（Tauri 进程不继承 shell PATH）
     let local_bin = project_root.join("node_modules/.bin/tauri");
-    let quoted_icon = icon_path.replace('\'', "'\\''");
+    let quoted_icon = effective_icon.replace('\'', "'\\''");
     let raw_cmd = if local_bin.exists() {
         format!("node_modules/.bin/tauri icon '{}'", quoted_icon)
     } else {
@@ -254,6 +282,21 @@ pub async fn icon_replace_icon(
         .current_dir(project_root)
         .output()
         .map_err(|e| format!("执行命令失败: {}", e))?;
+
+    // 把「macOS 外观」（圆角板 + 投影）烘焙进 icon.icns。
+    // dev 模式的 Dock 图标直接取 icns 原图，不走系统 IconServices，
+    // 烘焙后 dev 和打包产物才会长得一样（实测系统会原样放行这种 icns）。
+    #[cfg(target_os = "macos")]
+    if output.status.success() && full_bleed.unwrap_or(true) {
+        match bake_icns(&effective_icon, tauri_path) {
+            Ok(()) => prep_note.push_str("；已烘焙 macOS 圆角外观"),
+            Err(e) => prep_note.push_str(&format!("；macOS 外观烘焙失败（{}）", e)),
+        }
+    }
+
+    if let Some(tmp) = temp_icon {
+        let _ = fs::remove_file(tmp);
+    }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -268,10 +311,27 @@ pub async fn icon_replace_icon(
         "命令执行完成".to_string()
     };
 
+    // 前缀便于前端识别这行是预处理说明（见 app.jsx replaceIcon）
+    let combined = if prep_note.is_empty() {
+        combined
+    } else {
+        format!("[fullbleed] {}\n{}", prep_note, combined)
+    };
+
     Ok(IconOpResult {
         success: output.status.success(),
         output: combined,
     })
+}
+
+/// 读取满幅图并把 macOS 外观写回项目的 icon.icns
+#[cfg(target_os = "macos")]
+fn bake_icns(full_bleed_path: &str, tauri_path: &Path) -> Result<(), String> {
+    let img = image::open(full_bleed_path)
+        .map_err(|e| format!("读取预处理图失败: {}", e))?
+        .to_rgba8();
+    let look = icon_preprocess::bake_macos_look(&img)?;
+    icon_preprocess::write_macos_icns(&look, &tauri_path.join("icons"))
 }
 
 #[tauri::command]
@@ -288,10 +348,10 @@ pub async fn icon_build_project(
         });
     }
 
-    let build_cmd = with_nvm(&resolve_build_command(project_dir));
+    let build_cmd = with_rust(&with_nvm(&resolve_build_command(project_dir)));
     let shell = user_shell();
     let mut child = TokioCommand::new(&shell)
-        .args(["-c", &build_cmd])
+        .args(["-lc", &build_cmd])
         .current_dir(project_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -368,12 +428,12 @@ pub async fn icon_debug_project(
         return launch_in_terminal(project_path, raw_cmd);
     }
 
-    let dev_cmd = with_nvm(&raw_cmd);
+    let dev_cmd = with_rust(&with_nvm(&raw_cmd));
     let project_dir_buf = project_dir.to_path_buf();
     let shell = user_shell();
 
     let mut child = TokioCommand::new(&shell)
-        .args(["-c", &dev_cmd])
+        .args(["-lc", &dev_cmd])
         .current_dir(&project_dir_buf)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -412,7 +472,7 @@ pub async fn icon_debug_project(
         success: true,
         output: format!(
             "已启动调试模式（{}），日志实时输出中，首次 Rust 编译需约 1 分钟",
-            dev_cmd
+            raw_cmd
         ),
     })
 }
@@ -429,15 +489,18 @@ fn user_shell() -> String {
 // so cover all three plus `-l` to pick up ~/.zprofile (brew shellenv).
 fn run_cargo(args: &[&str], cwd: &std::path::Path) -> std::io::Result<std::process::Output> {
     let shell = user_shell();
-    let cargo_args = args.join(" ");
-    let cmd = format!(
-        "export PATH=\"$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; cargo {}",
-        cargo_args
-    );
+    let cmd = with_rust(&format!("cargo {}", args.join(" ")));
     Command::new(&shell)
         .args(["-lc", &cmd])
         .current_dir(cwd)
         .output()
+}
+
+// Prepend the usual cargo install dirs. `tauri build`/`tauri dev` shell out to
+// `cargo metadata`, so any command that drives the Tauri CLI needs this too —
+// not just direct cargo calls.
+fn with_rust(cmd: &str) -> String {
+    format!("export PATH=\"$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; {cmd}")
 }
 
 fn with_nvm(cmd: &str) -> String {
@@ -499,7 +562,7 @@ fi
     );
     let script = format!(
         "#!{shell} -il\n\
-export PATH=\"$HOME/.cargo/bin:$PATH\"\n\
+export PATH=\"$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\
 cd '{project_path}' || {{ echo \"cd 失败: {project_path}\"; read -r; exit 1; }}\n\
 {preflight}\
 echo \"=== 执行: {full_cmd} ===\"\n\

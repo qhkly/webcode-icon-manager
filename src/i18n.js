@@ -47,6 +47,8 @@
     workspaceDir: "工作区目录",
     selectDirBtn: "选择目录",
     selecting: "选择中...",
+    fullBleedLabel: "macOS 满幅预处理",
+    fullBleedHint: "替换前裁掉透明边并铺满画布，避免 macOS 26 自动套底板时露出一圈背景",
 
     // 日志
     operationLog: "操作日志",
@@ -110,9 +112,6 @@
 
     // 其他
     dirNotSet: "未设置目录",
-    themeSystemDesc: "跟随系统（点击切换暗色）",
-    themeDarkDesc: "暗色模式（点击切换亮色）",
-    themeLightDesc: "亮色模式（点击跟随系统）",
     langToggleToEn: "切换到英文",
     langToggleToZh: "切换到中文",
     noDescription: "无描述",
@@ -195,6 +194,8 @@
     workspaceDir: "Workspace Directory",
     selectDirBtn: "Select Directory",
     selecting: "Selecting...",
+    fullBleedLabel: "macOS full-bleed preprocessing",
+    fullBleedHint: "Trim transparent edges and fill the canvas before replacing, so macOS 26's automatic icon plate doesn't show a ring of background",
 
     // Log
     operationLog: "Operation Log",
@@ -258,9 +259,6 @@
 
     // Other
     dirNotSet: "Directory Not Set",
-    themeSystemDesc: "Follow system (click to toggle dark)",
-    themeDarkDesc: "Dark mode (click to toggle light)",
-    themeLightDesc: "Light mode (click to follow system)",
     langToggleToEn: "Switch to English",
     langToggleToZh: "Switch to Chinese",
     noDescription: "No description",

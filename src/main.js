@@ -1,15 +1,26 @@
-// ── Theme Initialization (runs before React) ──
+// ── Theme Utilities + Initialization (runs before React) ──
 (function () {
-  const saved = localStorage.getItem('icon-manager.theme');
-  if (saved) {
-    document.documentElement.dataset.theme = saved;
+  const KEY = 'icon-manager.theme';
+  const MEDIA = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function readPref() {
+    const saved = localStorage.getItem(KEY);
+    return saved === 'light' || saved === 'dark' ? saved : 'system';
   }
 
-  // Apply system preference if no saved theme
-  if (!saved) {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+  function resolve(pref) {
+    if (pref === 'light' || pref === 'dark') return pref;
+    return MEDIA.matches ? 'dark' : 'light';
   }
+
+  function apply(pref) {
+    const resolved = resolve(pref);
+    document.documentElement.dataset.theme = resolved;
+    return resolved;
+  }
+
+  window.themeUtil = { KEY, MEDIA, readPref, resolve, apply };
+
+  // Paint before first render to avoid a flash of the wrong theme
+  apply(readPref());
 })();
-
-

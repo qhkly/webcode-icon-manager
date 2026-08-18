@@ -8,6 +8,7 @@ const I = {
   gear: <g><path d="M3 4.5h2m4 0h6M3 9h8m4 0h0M3 13.5h5m4 0h3" /><circle cx="7" cy="4.5" r="1.8" /><circle cx="13" cy="9" r="1.8" /><circle cx="10" cy="13.5" r="1.8" /></g>,
   sun: <g><circle cx="9" cy="9" r="3" /><path d="M9 1.8v1.6M9 14.6v1.6M16.2 9h-1.6M3.4 9H1.8M14.1 3.9l-1.1 1.1M5 13l-1.1 1.1M14.1 14.1 13 13M5 5 3.9 3.9" /></g>,
   moon: <path d="M14.5 10.2A5.8 5.8 0 0 1 7.8 3.5a5.8 5.8 0 1 0 6.7 6.7z" />,
+  monitor: <g><rect x="2.5" y="3.5" width="13" height="8.5" rx="1.4" /><path d="M7 15h4M9 12v3" /></g>,
   grid: <g><rect x="2.5" y="2.5" width="5" height="5" rx="1.2" /><rect x="10.5" y="2.5" width="5" height="5" rx="1.2" /><rect x="2.5" y="10.5" width="5" height="5" rx="1.2" /><rect x="10.5" y="10.5" width="5" height="5" rx="1.2" /></g>,
   rows: <g><rect x="2.5" y="3" width="13" height="3.4" rx="1.2" /><rect x="2.5" y="7.8" width="13" height="3.4" rx="1.2" /><rect x="2.5" y="12.6" width="13" height="2" rx="1" /></g>,
   chev: <path d="m4.5 7 4.5 4 4.5-4" />,
@@ -38,6 +39,9 @@ const Svg = ({ d, w = 17, sw = 1.5, fill }) => (
   </svg>
 );
 
+// Cycle order matches the themeXDesc strings in i18n.js
+const THEME_CYCLE = { system: "dark", dark: "light", light: "system" };
+
 const EXTRA = {
   zh: {
     search: "搜索项目...",
@@ -56,8 +60,6 @@ const EXTRA = {
     iconDir: "src-tauri/icons",
     appearance: "外观设置",
     selectDir: "选择目录",
-    lightTheme: "亮色模式",
-    darkTheme: "暗色模式",
   },
   en: {
     search: "Search projects...",
@@ -76,8 +78,6 @@ const EXTRA = {
     iconDir: "src-tauri/icons",
     appearance: "Appearance",
     selectDir: "Choose",
-    lightTheme: "Light theme",
-    darkTheme: "Dark theme",
   },
 };
 
@@ -319,6 +319,17 @@ function SettingsModal({ open, settings, onClose, onSave, t }) {
             <Svg d={I.folder} w={14} />{selecting ? t("selecting") : t("selectDir")}
           </button>
         </div>
+        <label className="checkrow">
+          <input
+            type="checkbox"
+            checked={draft?.full_bleed !== false}
+            onChange={(e) => setDraft({ ...draft, full_bleed: e.target.checked })}
+          />
+          <span>
+            <b>{t("fullBleedLabel")}</b>
+            <em>{t("fullBleedHint")}</em>
+          </span>
+        </label>
         <div className="modalactions">
           <button className="btn" onClick={onClose}>{t("cancel")}</button>
           <button className="btn primary" onClick={() => onSave(draft)}>{t("saveAndRescan")}</button>
@@ -330,7 +341,7 @@ function SettingsModal({ open, settings, onClose, onSave, t }) {
 
 function App() {
   const { lang, t, toggleLang } = useI18n();
-  const [theme, setTheme] = useState(() => localStorage.getItem("icon-manager.theme") || "light");
+  const [themePref, setThemePref] = useState(() => window.themeUtil.readPref());
   const [view, setView] = useState(() => localStorage.getItem("icon-manager.view") || "grid");
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
@@ -348,9 +359,18 @@ function App() {
   }, [settings]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("icon-manager.theme", theme);
-  }, [theme]);
+    window.themeUtil.apply(themePref);
+    localStorage.setItem(window.themeUtil.KEY, themePref);
+  }, [themePref]);
+
+  // Follow the OS appearance live while the preference is "system"
+  useEffect(() => {
+    if (themePref !== "system") return;
+    const media = window.themeUtil.MEDIA;
+    const handler = () => window.themeUtil.apply("system");
+    media.addEventListener("change", handler);
+    return () => media.removeEventListener("change", handler);
+  }, [themePref]);
 
   useEffect(() => {
     localStorage.setItem("icon-manager.view", view);
@@ -416,8 +436,15 @@ function App() {
 
     await withLoading(project, async () => {
       pushLog("info", t("replacingIconFor"), project.name);
-      const result = await Bridge.replaceIcon(project.path, project.tauriDir, selectedFile);
+      const result = await Bridge.replaceIcon(
+        project.path,
+        project.tauriDir,
+        selectedFile,
+        settings.full_bleed !== false,
+      );
       if (result.success) {
+        const note = (result.output || "").split("\n").find((l) => l.startsWith("[fullbleed] "));
+        if (note) pushLog("info", note.slice("[fullbleed] ".length), project.name);
         pushLog("ok", t("iconReplaceOk"), project.name);
         await doScan();
       } else {
@@ -526,8 +553,16 @@ function App() {
           <button className="iconbtn langbtn" title={lang === "zh" ? t("langToggleToEn") : t("langToggleToZh")} onClick={toggleLang}>
             {lang === "zh" ? "中" : "EN"}
           </button>
-          <button className="iconbtn" title={theme === "light" ? t("darkTheme") : t("lightTheme")} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-            <Svg d={theme === "light" ? I.moon : I.sun} w={16} fill={theme === "light"} />
+          <button
+            className="iconbtn"
+            title={t(themePref === "system" ? "themeSystemDesc" : themePref === "dark" ? "themeDarkDesc" : "themeLightDesc")}
+            onClick={() => setThemePref(THEME_CYCLE[themePref] || "system")}
+          >
+            <Svg
+              d={themePref === "system" ? I.monitor : themePref === "dark" ? I.sun : I.moon}
+              w={16}
+              fill={themePref === "light"}
+            />
           </button>
           <button className="iconbtn" title={t("settings")} onClick={() => setSettingsOpen(true)}><Svg d={I.gear} w={16} /></button>
           <button className="btn primary" onClick={() => doScan()} disabled={scanning}>
